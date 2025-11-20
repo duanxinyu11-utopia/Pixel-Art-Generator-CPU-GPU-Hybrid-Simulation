@@ -1,0 +1,13 @@
+print Goal
+Sprint Goal:
+Implement the core Pixel Art Generator pipeline, enabling users to upload an image and convert it into retro-style pixel art using either the CPU or the simulated GPU processing mode.
+Mini-ADR
+Decision: Implement a hybrid CPU/GPU workflow where the CPU manages image loading and control flow, while the simulated GPU performs parallel color quantization and pixel-block computation.
+Reason: This structure demonstrates the performance difference and architectural separation between sequential (CPU) and parallel (GPU-style) processing.
+Consequence: The system gains improved performance for large images, but requires additional logic to coordinate CPU/GPU modes and maintain consistent output across both paths.
+Mini-API Description
+Endpoint: POST /api/pixelate
+Request: { "image": "<binary>", "mode": "cpu" | "gpu", "pixelSize": 8 }
+Success: 200 OK with { "pixelArtImage": "<base64>" }
+Fail: 400 Bad Request with { "error": "invalid image or parameters" }
+Description: Converts an uploaded image into pixel art using either CPU mode or simulated GPU mode for processing.
