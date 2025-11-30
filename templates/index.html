@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>复古像素画生成器</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background-color: #f0f0f0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .controls { margin: 20px 0; padding: 15px; background: #eee; border-radius: 8px; }
+        select, button, input { padding: 10px; font-size: 16px; margin: 5px; }
+        button { background-color: #007bff; color: white; border: none; cursor: pointer; border-radius: 5px;}
+        button:hover { background-color: #0056b3; }
+        .images { display: flex; justify-content: space-around; flex-wrap: wrap; margin-top: 20px; }
+        .image-box { flex: 1; min-width: 300px; margin: 10px; }
+        img { max-width: 100%; border: 2px solid #333; }
+        #loading { display: none; color: #666; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🎨 Pixel Art Generator</h1>
+
+    <div class="controls">
+        <input type="file" id="uploadInput" accept="image/*">
+
+        <select id="modeSelect">
+            <option value="cpu">CPU 模式 (慢 - 串行)</option>
+            <option value="gpu">GPU 模拟模式 (快 - 并行)</option>
+        </select>
+
+        <select id="sizeSelect">
+            <option value="8">精细 (8px)</option>
+            <option value="16" selected>标准 (16px)</option>
+            <option value="32">粗糙 (32px)</option>
+        </select>
+
+        <button onclick="generatePixelArt()">✨ 生成像素画</button>
+    </div>
+
+    <p id="status">准备就绪</p>
+
+    <div class="images">
+        <div class="image-box">
+            <h3>原图</h3>
+            <img id="originalImg" src="" alt="请上传图片" style="display:none;">
+        </div>
+        <div class="image-box">
+            <h3>结果</h3>
+            <img id="resultImg" src="" alt="结果将显示在这里" style="display:none;">
+        </div>
+    </div>
+</div>
+
+<script>
+    // 这是前端逻辑：负责把图片传给 Python，并把结果显示出来
+    async function generatePixelArt() {
+        const fileInput = document.getElementById('uploadInput');
+        const mode = document.getElementById('modeSelect').value;
+        const pixelSize = document.getElementById('sizeSelect').value;
+        const status = document.getElementById('status');
+
+        if (fileInput.files.length === 0) {
+            alert("请先选择一张图片！");
+            return;
+        }
+
+        const file = fileInput.files[0];
+
+        // 1. 显示原图
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('originalImg').src = e.target.result;
+            document.getElementById('originalImg').style.display = 'block';
+
+            // 2. 发送请求给后端
+            sendToBackend(e.target.result, mode, pixelSize);
+        }
+        reader.readAsDataURL(file);
+    }
+
+    async function sendToBackend(base64Image, mode, pixelSize) {
+        const status = document.getElementById('status');
+        status.innerText = "⏳ 正在计算中...";
+
+        try {
+            const response = await fetch('/api/pixelate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    image: base64Image,
+                    mode: mode,
+                    pixelSize: pixelSize
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // 3. 显示结果
+                document.getElementById('resultImg').src = "data:image/png;base64," + data.pixelArtImage;
+                document.getElementById('resultImg').style.display = 'block';
+                status.innerText = `✅ 完成! 耗时: ${data.processTime}`;
+            } else {
+                status.innerText = "❌ 错误: " + data.error;
+            }
+        } catch (error) {
+            console.error(error);
+            status.innerText = "❌ 网络错误，请检查后台是否运行";
+        }
+    }
+</script>
+
+</body>
+</html>
