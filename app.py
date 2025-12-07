@@ -3,68 +3,94 @@ import io
 import time
 from flask import Flask, request, jsonify, render_template
 from PIL import Image
-from processor import PixelArtGenerator  # 导入刚才写的类
+from processor import PixelArtGenerator  # Import the core processing class
 
 app = Flask(__name__)
+
+
 @app.route('/')
 def index():
+    """
+    Renders the main page (Frontend).
+    """
     return render_template('index.html')
 
 
-# --- 辅助工具函数 ---
+# --- Utility Helper Functions ---
 
 def decode_image(base64_string):
-    """把前端传来的 Base64 字符串变成图片对象"""
+    """
+    Decodes a Base64 string received from the frontend into a PIL Image object.
+
+    Args:
+        base64_string (str): The raw base64 string (may include data URI header).
+
+    Returns:
+        Image: A PIL Image object in RGB mode.
+    """
+    # Remove the data URI header (e.g., "data:image/png;base64,") if present
     if "," in base64_string:
         base64_string = base64_string.split(",")[1]
+
+    # Decode base64 string to bytes
     image_data = base64.b64decode(base64_string)
+
+    # Convert bytes to a PIL Image
     return Image.open(io.BytesIO(image_data)).convert('RGB')
 
 
 def encode_image(image):
-    """把处理好的图片对象变回 Base64 字符串发给前端"""
+    """
+    Encodes a PIL Image object back into a Base64 string to send to the frontend.
+
+    Args:
+        image (Image): The processed PIL Image object.
+
+    Returns:
+        str: Base64 encoded string of the image.
+    """
     buffered = io.BytesIO()
+    # Save image to the memory buffer as PNG
     image.save(buffered, format="PNG")
+    # Encode bytes to base64 string
     img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
     return img_str
 
 
-# --- API 路由 ---
+# --- API Routes ---
+
+# ... 前面的代码保持不变 ...
 
 @app.route('/api/pixelate', methods=['POST'])
 def pixelate():
-    print("收到请求...")
     data = request.get_json()
-
-    # 1. 检查参数
     if not data or 'image' not in data:
-        return jsonify({"error": "没有找到图片数据"}), 400
+        return jsonify({"error": "No image data found"}), 400
 
-    # 获取参数，如果没有传则使用默认值
-    mode = data.get('mode', 'cpu')  # 模式: 'cpu' 或 'gpu'
-    pixel_size = int(data.get('pixelSize', 8))  # 像素块大小
+    mode = data.get('mode', 'cpu')
+    pixel_size = int(data.get('pixelSize', 8))
 
     try:
-        # 2. 解码图片
         original_image = decode_image(data['image'])
-
-        # 3. 初始化处理器
         generator = PixelArtGenerator(original_image, pixel_size)
-
         start_time = time.time()
 
-        # 4. 根据模式执行不同的算法
+        # --- 修改了这里：增加了 kmeans 判断 ---
         if mode == 'gpu':
             processed_image = generator.process_gpu_simulated()
-            process_type = "GPU (向量化加速)"
+            process_type = "GPU (Vectorized)"
+        elif mode == 'kmeans':
+            # K-Means 模式：AI 聚类，颜色更鲜艳
+            processed_image = generator.process_kmeans(n_colors=16)
+            process_type = "AI (K-Means Clustering)"
         else:
             processed_image = generator.process_cpu()
-            process_type = "CPU (串行循环)"
+            process_type = "CPU (Serial)"
+        # ------------------------------------
 
         duration = time.time() - start_time
-        print(f"模式: {process_type} | 耗时: {duration:.4f} 秒")
+        print(f"Mode: {process_type} | Time taken: {duration:.4f}s")
 
-        # 5. 返回结果
         result_base64 = encode_image(processed_image)
         return jsonify({
             "pixelArtImage": result_base64,
@@ -73,10 +99,13 @@ def pixelate():
         }), 200
 
     except Exception as e:
-        print(f"发生错误: {e}")
+        print(f"Error: {e}")
         return jsonify({"error": str(e)}), 500
 
 
+# ... 后面的代码保持不变 ...
+
+
 if __name__ == '__main__':
-    # 启动服务器
+    # Start the Flask development server
     app.run(debug=True, port=5000)

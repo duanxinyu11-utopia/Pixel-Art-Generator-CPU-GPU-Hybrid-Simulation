@@ -1,0 +1,44 @@
+name: CI/CD Pipeline
+
+# 触发条件：当推送到 main 分支时自动运行
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest  # 使用 GitHub 提供的 Ubuntu 服务器
+
+    steps:
+    # 1. 下载你的代码
+    - uses: actions/checkout@v3
+
+    # 2. 安装 Python 环境
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
+
+    # 3. 安装依赖库
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install flask pillow numpy scikit-learn pytest flake8
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    # 4. 代码风格检查 (Linter)
+    # 这步如果发现代码写得太乱(比如有未使用的变量)会报错，这是作业要求的 Clean Code
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    # 5. 运行自动化测试 (最关键的一步)
+    - name: Run Tests with pytest
+      run: |
+        # 使用模块模式运行，防止路径报错
+        python -m pytest

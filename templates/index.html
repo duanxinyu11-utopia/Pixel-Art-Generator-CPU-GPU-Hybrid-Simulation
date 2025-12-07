@@ -1,80 +1,85 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>复古像素画生成器</title>
+    <title>Retro Pixel Art Generator</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background-color: #f0f0f0; padding: 20px; }
-        .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .controls { margin: 20px 0; padding: 15px; background: #eee; border-radius: 8px; }
-        select, button, input { padding: 10px; font-size: 16px; margin: 5px; }
-        button { background-color: #007bff; color: white; border: none; cursor: pointer; border-radius: 5px;}
-        button:hover { background-color: #0056b3; }
-        .images { display: flex; justify-content: space-around; flex-wrap: wrap; margin-top: 20px; }
-        .image-box { flex: 1; min-width: 300px; margin: 10px; }
-        img { max-width: 100%; border: 2px solid #333; }
-        #loading { display: none; color: #666; font-weight: bold; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background-color: #f4f4f9; padding: 20px; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; margin-bottom: 20px; }
+        .controls { margin: 20px 0; padding: 20px; background: #eef2f5; border-radius: 8px; display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; }
+        select, button, input { padding: 10px 15px; font-size: 14px; border: 1px solid #ccc; border-radius: 5px; outline: none; }
+        button { background-color: #3498db; color: white; border: none; cursor: pointer; font-weight: bold; transition: background 0.3s; }
+        button:hover { background-color: #2980b9; }
+        .images { display: flex; justify-content: space-around; flex-wrap: wrap; margin-top: 30px; gap: 20px; }
+        .image-box { flex: 1; min-width: 300px; background: #fafafa; padding: 10px; border-radius: 8px; border: 1px solid #eee; }
+        .image-box h3 { margin-top: 0; color: #555; }
+        img { max-width: 100%; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: none; }
+        #status { margin-top: 15px; font-weight: bold; color: #7f8c8d; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🎨 Pixel Art Generator</h1>
+    <h1>🎨 Retro Pixel Art Generator</h1>
 
     <div class="controls">
         <input type="file" id="uploadInput" accept="image/*">
 
         <select id="modeSelect">
-            <option value="cpu">CPU 模式 (慢 - 串行)</option>
-            <option value="gpu">GPU 模拟模式 (快 - 并行)</option>
+            <option value="cpu">CPU Mode (Standard)</option>
+            <option value="gpu">GPU Mode (Fast)</option>
+            <option value="kmeans">🤖 AI Mode (K-Means Art)</option>
         </select>
 
         <select id="sizeSelect">
-            <option value="8">精细 (8px)</option>
-            <option value="16" selected>标准 (16px)</option>
-            <option value="32">粗糙 (32px)</option>
+            <option value="8">High Detail (8px)</option>
+            <option value="16" selected>Standard (16px)</option>
+            <option value="32">Blocky (32px)</option>
         </select>
 
-        <button onclick="generatePixelArt()">✨ 生成像素画</button>
+        <button onclick="generatePixelArt()">✨ Generate</button>
     </div>
 
-    <p id="status">准备就绪</p>
+    <p id="status">Ready to create.</p>
 
     <div class="images">
         <div class="image-box">
-            <h3>原图</h3>
-            <img id="originalImg" src="" alt="请上传图片" style="display:none;">
+            <h3>Original Image</h3>
+            <img id="originalImg" src="" alt="Upload Preview">
         </div>
         <div class="image-box">
-            <h3>结果</h3>
-            <img id="resultImg" src="" alt="结果将显示在这里" style="display:none;">
+            <h3>Pixelated Result</h3>
+            <img id="resultImg" src="" alt="Result Preview">
         </div>
     </div>
 </div>
 
 <script>
-    // 这是前端逻辑：负责把图片传给 Python，并把结果显示出来
+    // Frontend Logic: Handles User Interaction and API Calls
     async function generatePixelArt() {
         const fileInput = document.getElementById('uploadInput');
         const mode = document.getElementById('modeSelect').value;
         const pixelSize = document.getElementById('sizeSelect').value;
         const status = document.getElementById('status');
 
+        // Validation
         if (fileInput.files.length === 0) {
-            alert("请先选择一张图片！");
+            alert("Please select an image first!");
             return;
         }
 
         const file = fileInput.files[0];
 
-        // 1. 显示原图
+        // 1. Preview Original Image locally using FileReader
         const reader = new FileReader();
         reader.onload = function(e) {
-            document.getElementById('originalImg').src = e.target.result;
-            document.getElementById('originalImg').style.display = 'block';
+            const originalImg = document.getElementById('originalImg');
+            originalImg.src = e.target.result;
+            originalImg.style.display = 'block';
 
-            // 2. 发送请求给后端
+            // 2. Send Data to Backend
             sendToBackend(e.target.result, mode, pixelSize);
         }
         reader.readAsDataURL(file);
@@ -82,9 +87,10 @@
 
     async function sendToBackend(base64Image, mode, pixelSize) {
         const status = document.getElementById('status');
-        status.innerText = "⏳ 正在计算中...";
+        status.innerText = "⏳ Processing... Please wait.";
 
         try {
+            // Asynchronous Fetch Request
             const response = await fetch('/api/pixelate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -98,16 +104,17 @@
             const data = await response.json();
 
             if (response.ok) {
-                // 3. 显示结果
-                document.getElementById('resultImg').src = "data:image/png;base64," + data.pixelArtImage;
-                document.getElementById('resultImg').style.display = 'block';
-                status.innerText = `✅ 完成! 耗时: ${data.processTime}`;
+                // 3. Render Result
+                const resultImg = document.getElementById('resultImg');
+                resultImg.src = "data:image/png;base64," + data.pixelArtImage;
+                resultImg.style.display = 'block';
+                status.innerText = `✅ Done! Time taken: ${data.processTime} (${data.mode.toUpperCase()} Mode)`;
             } else {
-                status.innerText = "❌ 错误: " + data.error;
+                status.innerText = "❌ Error: " + data.error;
             }
         } catch (error) {
             console.error(error);
-            status.innerText = "❌ 网络错误，请检查后台是否运行";
+            status.innerText = "❌ Network Error. Is the server running?";
         }
     }
 </script>

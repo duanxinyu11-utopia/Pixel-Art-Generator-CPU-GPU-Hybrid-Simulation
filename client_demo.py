@@ -10,7 +10,7 @@ img_path = "test.jpg"  # 确保你的文件夹里有这张图！
 # 1. 检查图片是否存在
 if not os.path.exists(img_path):
     print(f"❌ 错误：找不到文件 {img_path}")
-    print("请找一张图片放进项目文件夹，并重命名为 test.jpg")
+    print("请找一张图片放进项目文件夹，并重命名为 tests.jpg")
     exit()
 
 # 2. 读取并编码图片 (模拟前端上传)
